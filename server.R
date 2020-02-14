@@ -1,6 +1,10 @@
 
 function(input, output) {
  
+# -------- TAB 1
+    
+## plotly: ecological footprint per region
+    
 output$ef_reg_plot <- renderPlotly({
         
         ef_region <- footprint %>% 
@@ -17,18 +21,20 @@ output$ef_reg_plot <- renderPlotly({
                  x = NULL) +
             scale_y_continuous(limits = c(0, 150),
                            breaks = seq(0,150, 25)) +
-        scale_fill_gradient(low = "#F78181", high = "#3B0B0B") +
-        theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.04),
+            scale_fill_gradient(low = "#F78181", high = "#3B0B0B") +
+            theme(plot.title = element_text(face = "bold", size = 14, hjust = 0.04),
               axis.ticks.y = element_blank(),
               panel.background = element_rect(fill = "#ffffff"), 
               panel.grid.major.x = element_line(colour = "grey"),
               axis.line.x = element_line(color = "grey"),
               axis.text = element_text(size = 10, colour = "black")
-        )
+                 )
     
     ggplotly(ef_reg_plot, tooltip = "text")
     
 })
+
+# plotly: biocapacity per region
 
 output$b_reg_plot <- renderPlotly({
     
@@ -55,7 +61,10 @@ output$b_reg_plot <- renderPlotly({
               axis.text = element_text(size = 10, colour = "black"))
     
     ggplotly(b_reg_plot, tooltip = "text")
+
 })
+
+# plot: scatterplot HDI on Ecological Footprint
 
 output$scat_plot <- renderPlotly({
     
@@ -83,8 +92,42 @@ output$scat_plot <- renderPlotly({
                           y = 1, x = 0))
 })
 
+# -------- TAB 2
+
+# leaflet
+
+output$leaflet <- renderLeaflet({
+    
+   m <- leaflet(shape) %>% 
+        addProviderTiles("Esri.NatGeoWorldMap") %>% 
+        setView( lat=10, lng=0 , zoom=2) %>%
+    # for choropleth
+        addPolygons( 
+            fillColor = ~mypalette(diff), 
+            color = "green",
+            dashArray = "3", 
+            fillOpacity = 0.6,
+            weight=1,
+            label = mytext,
+            labelOptions = labelOptions( 
+                style = list("font-weight" = "normal", padding = "3px 8px"), 
+                textsize = "13px", 
+                direction = "auto"),
+            popup = popup_shape
+        ) %>%
+        addLegend(pal=mypalette, 
+                  values=~diff, opacity=0.9, 
+                  title = paste("Remaining","<br>","Biocapacity (gha)"), 
+                  position = "bottomleft")
+    
+    m
+})
+
+# plotly reactive: Ecologocal Footprint & Biocapacity Proportion
+
 output$con_fill <- renderPlotly({
 
+# filter with reactive
 country_reg <- footprint %>%
     filter(Region == input$Region) %>%
     group_by(Country) %>%
@@ -94,11 +137,13 @@ country_reg <- footprint %>%
     arrange(desc(Ecological.Footprint)) %>%
     rename("Ecological Footprint" = Ecological.Footprint)
 
+# data aggregation
 country_fill <- country_reg %>%
     select(-Status) %>%
     gather(key, value, -Country) %>%
     rename(Measure = key, Value = value)
 
+# visualization
 con_fill <- ggplot(country_fill, aes(x = Country, y = Value)) +
     geom_col(aes(fill=Measure), position = "fill") +
     geom_hline(yintercept = 0.5, linetype = "dashed", size = 1, col = "white") +
@@ -120,14 +165,28 @@ ggplotly(con_fill) %>%
 
 })
 
+# plotly reactive: Ecologocal Footprint & Biocapacity Sources
+
 output$con_def_plot <- renderPlotly({
     
+    # filter with reactive
     con_dodge_ef <- footprint %>% 
-        select(Country, Cropland.Footprint, Grazing.Footprint, Forest.Footprint, Carbon.Footprint, Fish.Footprint, Cropland, Grazing.Land, Forest.Land, Fishing.Water, Urban.Land) %>%
-        rename("Cropland Footprint" = Cropland.Footprint, "Grazing Footprint" = Grazing.Footprint, "Carbon Footprint" = Carbon.Footprint, "Forest Footprint" = Forest.Footprint, "Fishing Footprint" = Fish.Footprint,  "Grazing Land" = Grazing.Land, "Forest Land" = Forest.Land, "Fishing Water" = Fishing.Water, "Urban Land" = Urban.Land) %>%
+        select(Country, Cropland.Footprint, Grazing.Footprint, Forest.Footprint, 
+               Carbon.Footprint, Fish.Footprint, Cropland, Grazing.Land, Forest.Land, 
+               Fishing.Water, Urban.Land) %>%
+        rename("Cropland Footprint" = Cropland.Footprint, 
+               "Grazing Footprint" = Grazing.Footprint, 
+               "Carbon Footprint" = Carbon.Footprint, 
+               "Forest Footprint" = Forest.Footprint, 
+               "Fishing Footprint" = Fish.Footprint,  
+               "Grazing Land" = Grazing.Land, 
+               "Forest Land" = Forest.Land, 
+               "Fishing Water" = Fishing.Water, 
+               "Urban Land" = Urban.Land) %>%
         gather(key = "Source", value, -Country) %>% 
         mutate(text = paste0(Source,": ", value, " gha")) %>%
         filter(Country==input$Country) %>% 
+    # reordering levels in `Source` for visual in legend
         mutate(Source = ordered(Source, levels = c("Fishing Footprint",
                                                    "Fishing Water",
                                                    "Forest Footprint",
@@ -139,11 +198,10 @@ output$con_def_plot <- renderPlotly({
                                                    "Carbon Footprint",
                                                    "Urban Land")))
     
+    # visualization
     con_def_plot <- ggplot(con_dodge_ef, aes(x=Country, y=value, text = text)) +
         geom_col(aes(fill=Source), position = "dodge") +
-        # coord_flip() +
-        labs(title = "Ecological Footprint and Biocapacity Sources", 
-             # subtitle = "Per Country",
+        labs(title = "Ecological Footprint and Biocapacity Sources",
              x = NULL, y = NULL) +
         scale_fill_brewer(palette = "Paired") +
         theme(legend.position = "topright",
@@ -161,38 +219,7 @@ output$con_def_plot <- renderPlotly({
     
 })
 
-
-# output$con_db_plot <- renderPlotly({
-#     
-#     con_dodge_b <- footprint %>% 
-#         select(Country, Cropland, Grazing.Land, Forest.Land, Fishing.Water, Urban.Land) %>%
-#         rename("Grazing Land" = Grazing.Land, "Forest Land" = Forest.Land, "Fishing Water" = Fishing.Water, "Urban Land" = Urban.Land) %>% 
-#         gather(key = "Source", value, -Country) %>%
-#         mutate(text = paste0(Source,": ", value, " gha")) %>% 
-#         filter(Country==input$Country)
-#     
-#     con_db_plot <- ggplot(con_dodge_b, aes(x=Country, y=value, text = text)) +
-#         geom_col(aes(fill=Source), position = "dodge") +
-#         coord_flip() +
-#         labs(title = "Biocapacity Sources", 
-#              subtitle = "Per Country",
-#              x = NULL, y = NULL) +
-#         scale_fill_brewer(palette = "Set1") +
-#         theme(legend.position = "topright",
-#               legend.title = element_blank(),
-#               axis.text.x = element_text(colour = "black"),
-#               axis.text.y = element_blank(),
-#               plot.title = element_text(face = "bold"),
-#               panel.background = element_rect(fill = "#ffffff"),
-#               axis.line = element_blank(),
-#               axis.ticks.y = element_blank(),
-#               panel.grid.major.x = element_line(colour = "grey"),
-#               panel.grid.minor.x = element_line(colour = "grey"))
-#     
-#     ggplotly(con_db_plot, tooltip = "text")
-#     
-# })
-
+# valuebox reactive: country
 output$CountryBox <- renderValueBox({
     
     co <- footprint %>% 
@@ -202,33 +229,7 @@ output$CountryBox <- renderValueBox({
 
 })
 
-output$PopulationBox <- renderValueBox({
-    
-    pop <- footprint %>% 
-        filter(Country == input$Country)
-    
-    valueBox(value = pop$Population.millions, subtitle = "Population in Millions", color = "green",
-             icon = icon("users"))
-})
-
-output$HDIBox <- renderValueBox({
-    
-    hdi <- footprint %>% 
-        filter(Country == input$Country)
-    
-    valueBox(value = hdi$HDI, subtitle = "Human Development Index", color = "green", icon = icon("user-graduate"))
-    
-})
-
-output$GDPBox <- renderValueBox({
-    
-    gdp <- footprint %>% 
-        filter(Country == input$Country)
-    
-    valueBox(value = gdp$GDP.per.Capita, subtitle = "GDP per Capita", color = "green",
-             icon = icon("money-bill-wave"))
-})
-
+# valuebox reactive: Ecological Deficiency Status
 output$StatusBox <- renderValueBox({
     
     status <- footprint %>% 
@@ -239,6 +240,7 @@ output$StatusBox <- renderValueBox({
              icon = icon("leaf"))
 })
 
+# valuebox reactive: Ecological/Biocapacity
 output$EFBBox <- renderValueBox({
     
     efb <- footprint %>% 
@@ -249,107 +251,52 @@ output$EFBBox <- renderValueBox({
              subtitle = "Footprint/Biocapacity", 
              color = "teal",
              icon = icon("pagelines"))
-
+    
 })
 
-output$ERBox <- renderValueBox({
-     
-     er <- footprint %>% 
-         filter(Country == input$Country)
-     
-     valueBox(value = er$Earths.Required, subtitle = "Earths Required", color = "green",
-              icon = icon("globe-americas"))
-     
-})
+# valuebox reactive: population number
+# output$PopulationBox <- renderValueBox({
+#     
+#     pop <- footprint %>% 
+#         filter(Country == input$Country)
+#     
+#     valueBox(value = pop$Population.millions, subtitle = "Population in Millions", color = "green",
+#              icon = icon("users"))
+# })
 
-# output$data1 <- renderDataTable({
+# valuebox reactive: HDI score
+# output$HDIBox <- renderValueBox({
 #     
-#     foot1 <- footprint %>% 
-#         rename("Population in Millions" = Population.millions, 
-#                "GDP per Capita" = GDP.per.Capita,
-#                "Cropland Footprint" = Cropland.Footprint, 
-#                "Grazing Footprint" = Grazing.Footprint, 
-#                "Carbon Footprint" = Carbon.Footprint, 
-#                "Forest Footprint" = Forest.Footprint, 
-#                "Fishing Footprint" = Fish.Footprint, 
-#                "Total Ecological Footprint" = Total.Ecological.Footprint,
-#                "Grazing Land" = Grazing.Land, 
-#                "Forest Land" = Forest.Land, 
-#                "Fishing Water" = Fishing.Water, 
-#                "Urban Land" = Urban.Land,
-#                "Total Biocapacity" = Total.Biocapacity,
-#                "Earths Required" = Earths.Required,
-#                "Countries Required" = Countries.Required)
-#     foot1[,c(1,6:11)]
-#        
-# })
-# 
-# output$data2 <- renderDataTable({
+#     hdi <- footprint %>% 
+#         filter(Country == input$Country)
 #     
-#     foot2 <- footprint %>% 
-#         rename("Population in Millions" = Population.millions, 
-#                "GDP per Capita" = GDP.per.Capita,
-#                "Cropland Footprint" = Cropland.Footprint, 
-#                "Grazing Footprint" = Grazing.Footprint, 
-#                "Carbon Footprint" = Carbon.Footprint, 
-#                "Forest Footprint" = Forest.Footprint, 
-#                "Fishing Footprint" = Fish.Footprint, 
-#                "Total Ecological Footprint" = Total.Ecological.Footprint,
-#                "Grazing Land" = Grazing.Land, 
-#                "Forest Land" = Forest.Land, 
-#                "Fishing Water" = Fishing.Water, 
-#                "Urban Land" = Urban.Land,
-#                "Total Biocapacity" = Total.Biocapacity,
-#                "Earths Required" = Earths.Required,
-#                "Countries Required" = Countries.Required)
-#     foot2[,c(1,12:17)]
+#     valueBox(value = hdi$HDI, subtitle = "Human Development Index", color = "green", icon = icon("user-graduate"))
 #     
 # })
+
+# valuebox reactive: GDP
+# output$GDPBox <- renderValueBox({
+#     
+#     gdp <- footprint %>% 
+#         filter(Country == input$Country)
+#     
+#     valueBox(value = gdp$GDP.per.Capita, subtitle = "GDP per Capita", color = "green",
+#              icon = icon("money-bill-wave"))
+# })
+
+# valuebox reactive: Earths Required
+# output$ERBox <- renderValueBox({
+#      
+#      er <- footprint %>% 
+#          filter(Country == input$Country)
+#      
+#      valueBox(value = er$Earths.Required, subtitle = "Earths Required", color = "green",
+#               icon = icon("globe-americas"))
+#      
+# })
+
+# -------- TAB 3
 
 output$data3 <- DT::renderDataTable(datadis, options = list(scrollX = T))
-    
-    # foot3 <- footprint %>% 
-    #     dplyr::rename("Population in Millions" = Population.millions, 
-    #                   "GDP per Capita" = GDP.per.Capita,
-    #                   "Cropland Footprint" = Cropland.Footprint, 
-    #                   "Grazing Footprint" = Grazing.Footprint, 
-    #                   "Carbon Footprint" = Carbon.Footprint, 
-    #                   "Forest Footprint" = Forest.Footprint, 
-    #                   "Fishing Footprint" = Fish.Footprint, 
-    #                   "Total Ecological Footprint" = Total.Ecological.Footprint,
-    #                   "Grazing Land" = Grazing.Land, 
-    #                   "Forest Land" = Forest.Land, 
-    #                   "Fishing Water" = Fishing.Water, 
-    #                   "Urban Land" = Urban.Land,
-    #                   "Total Biocapacity" = Total.Biocapacity,
-    #                   "Earths Required" = Earths.Required,
-    #                   "Countries Required" = Countries.Required) %>% 
-    #     select(1)
-    # 
-    # })
-
-output$leaflet <- renderLeaflet({
-    
-    m <- leaflet(shape) %>% 
-        addProviderTiles("Esri.NatGeoWorldMap") %>% 
-        setView( lat=10, lng=0 , zoom=2) %>%
-        addPolygons( 
-            fillColor = ~mypalette(diff), 
-            color = "green",
-            dashArray = "3", 
-            fillOpacity = 0.6,
-            weight=1,
-            label = mytext,
-            labelOptions = labelOptions( 
-                style = list("font-weight" = "normal", padding = "3px 8px"), 
-                textsize = "13px", 
-                direction = "auto"
-            ),
-            popup = popup_shape
-        ) %>%
-        addLegend(pal=mypalette, values=~diff, opacity=0.9, title = paste("Remaining","<br>","Biocapacity (gha)"), position = "bottomleft")
-    
-    m
-})
 
 }

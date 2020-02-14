@@ -7,9 +7,10 @@ library(plotly)
 library(shiny)
 library(shinydashboard)
 
-## general data
+# general data
 footprint <- read.csv("countries.csv")
 
+## data cleaning
 footprint <- footprint %>% 
   mutate(Country = as.character(Country),
          GDP.per.Capita = as.numeric(gsub("[$,]","", footprint$GDP.per.Capita)),
@@ -20,6 +21,7 @@ footprint <- footprint %>%
   select(-c(Data.Quality)) %>% 
   drop_na()
 
+## data for scatterplot
 scat_plot_data <- footprint %>% 
   select(Country, Population.millions, GDP.per.Capita, HDI, Total.Ecological.Footprint, Status) %>% 
   rename(Population.in.millions = Population.millions,
@@ -30,25 +32,30 @@ scat_plot_data <- footprint %>%
                        "Ecological Footprint: ", Ecological.Footprint, "<br>",
                        "GDP per Capita: ", "$", GDP.per.Capita))
 
+# data for display in table
 datadis <- footprint %>% 
   mutate(Country = as.factor(Country)) %>% 
   select(Region, everything())
 
+## data for leaflet
+
+## tabular data
 leaflet <- footprint %>% 
   dplyr::select(-c(2, 6:10, 12:16, 19:20))
 
-shape <- raster::shapefile("TM_WORLD_BORDERS_SIMPL-0.3.shp")
-
-# prepare data for color
+## prepare `diff` data for coloring in leaflet
 leaf <- leaflet %>% 
   mutate(diff = Total.Biocapacity - Total.Ecological.Footprint) %>% 
   select(-Population.millions) %>% 
-  rename(NAME = Country)
+  rename(NAME = Country) # renaming column for joining ID
 
-# combining data
+## shape file
+shape <- raster::shapefile("TM_WORLD_BORDERS_SIMPL-0.3.shp")
+
+## combining tabular data into shape data
 shape@data <- shape@data %>% left_join(leaf, by = "NAME")
 
-# cleaning data
+## replacing column manually for rows with different country name
 shape@data[shape@data$NAME=="United States",c(12:17)] <- leaf[leaf$NAME=="United States of America", c(2:7)]
 shape@data[shape@data$NAME=="Russia",c(12:17)] <- leaf[leaf$NAME=="Russian Federation",c(2:7)]
 shape@data[shape@data$NAME=="Venezuela",c(12:17)] <- leaf[leaf$NAME=="Venezuela, Bolivarian Republic of",c(2:7)]
@@ -59,32 +66,26 @@ shape@data[shape@data$NAME=="Democratic Republic of the Congo",c(12:17)] <- leaf
 shape@data[shape@data$NAME=="United Republic of Tanzania",c(12:17)] <- leaf[leaf$NAME=="Tanzania, United Republic of",c(2:7)]
 shape@data[shape@data$NAME=="Burma",c(12:17)] <- leaf[leaf$NAME=="Myanmar",c(2:7)]
 
-# prepare pop-up
-shape@data %>% 
-  mutate(text = paste0("Country: ", NAME, "<br>",
-                       "Status: ", Status,"<br>",
-                       "Ecological Footprint: ", Total.Ecological.Footprint, " gha <br>",
-                       "Biocapacity: ", Total.Biocapacity, " gha <br>",
-                       "HDI: ", HDI, "<br>",
-                       "GDP per Capita: ", "$", GDP.per.Capita, "<br>"
-  ))
-
 # Create a color palette with handmade bins.
 library(RColorBrewer)
 mybins <- c(-Inf,-5,0,5,Inf)
-mypalette <- colorBin(palette="RdYlGn", domain=shape@data$diff, na.color="transparent", bins=mybins)
+mypalette <- colorBin(palette="RdYlGn", 
+                      domain=shape@data$diff, 
+                      na.color="transparent", 
+                      bins=mybins)
 
 # prepare label
 mytext <- paste(shape@data$NAME) %>%
   lapply(htmltools::HTML)
 
-popup_shape  <- paste("<h3><b>", shape@data$NAME, "</b></h3>", 
-                      "Status: ", shape@data$Status, "<br>", 
-                      "Ecological Footprint: ", shape@data$Total.Ecological.Footprint, " gha <br>",
-                      "Biocapacity: ", shape@data$Total.Biocapacity, " gha <br>",
-                      "HDI: ", shape@data$HDI, "<br>",
-                      "GDP per Capita: ", "$", shape@data$GDP.per.Capita, "<br>", 
-                      sep="")
+# prepare pop-up
+popup_shape <- paste("<h3><b>", shape@data$NAME, "</b></h3>", 
+                     "Status: ", shape@data$Status, "<br>", 
+                     "Ecological Footprint: ", shape@data$Total.Ecological.Footprint, " gha <br>",
+                     "Biocapacity: ", shape@data$Total.Biocapacity, " gha <br>",
+                     "HDI: ", shape@data$HDI, "<br>",
+                     "GDP per Capita: ", "$", shape@data$GDP.per.Capita, "<br>", 
+                     sep="")
 
 # prepare input
 selectRegion <- unique(footprint$Region)
