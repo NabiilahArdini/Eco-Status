@@ -1,11 +1,10 @@
-library(rgdal)
-library(leaflet)
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-library(plotly)
-library(shiny)
-library(shinydashboard)
+library(rgdal) # plot map
+library(leaflet) # plot map
+library(tidyr) # data wrangling
+library(ggplot2) # plot
+library(plotly) # interactive plot
+library(shiny) # shiny
+library(shinydashboard) # shiny dashboard
 
 # general data
 footprint <- read.csv("countries.csv")
@@ -21,7 +20,7 @@ footprint <- footprint %>%
   select(-c(Data.Quality)) %>% 
   drop_na()
 
-## data for scatterplot
+# data for scatterplot
 scat_plot_data <- footprint %>% 
   select(Country, Population.millions, GDP.per.Capita, HDI, Total.Ecological.Footprint, Status) %>% 
   rename(Population.in.millions = Population.millions,
@@ -35,9 +34,12 @@ scat_plot_data <- footprint %>%
 # data for display in table
 datadis <- footprint %>% 
   mutate(Country = as.factor(Country)) %>% 
-  select(Region, everything())
+  select(Region, everything()) 
+  # rename("Popullation in Millions")
 
-## data for leaflet
+colnames(datadis) <- gsub(pattern = "[.]", replacement = " ", colnames(datadis))
+
+# data for leaflet
 
 ## tabular data
 leaflet <- footprint %>% 
@@ -53,7 +55,7 @@ leaf <- leaflet %>%
 shape <- raster::shapefile("TM_WORLD_BORDERS_SIMPL-0.3.shp")
 
 ## combining tabular data into shape data
-shape@data <- shape@data %>% left_join(leaf, by = "NAME")
+shape@data <- shape@data %>% dplyr::left_join(leaf, by = "NAME")
 
 ## replacing column manually for rows with different country name
 shape@data[shape@data$NAME=="United States",c(12:17)] <- leaf[leaf$NAME=="United States of America", c(2:7)]
@@ -66,7 +68,7 @@ shape@data[shape@data$NAME=="Democratic Republic of the Congo",c(12:17)] <- leaf
 shape@data[shape@data$NAME=="United Republic of Tanzania",c(12:17)] <- leaf[leaf$NAME=="Tanzania, United Republic of",c(2:7)]
 shape@data[shape@data$NAME=="Burma",c(12:17)] <- leaf[leaf$NAME=="Myanmar",c(2:7)]
 
-# Create a color palette with handmade bins.
+## create a color palette with handmade bins
 library(RColorBrewer)
 mybins <- c(-Inf,-5,0,5,Inf)
 mypalette <- colorBin(palette="RdYlGn", 
@@ -74,11 +76,11 @@ mypalette <- colorBin(palette="RdYlGn",
                       na.color="transparent", 
                       bins=mybins)
 
-# prepare label
+## prepare label
 mytext <- paste(shape@data$NAME) %>%
   lapply(htmltools::HTML)
 
-# prepare pop-up
+## prepare pop-up
 popup_shape <- paste("<h3><b>", shape@data$NAME, "</b></h3>", 
                      "Status: ", shape@data$Status, "<br>", 
                      "Ecological Footprint: ", shape@data$Total.Ecological.Footprint, " gha <br>",
@@ -87,6 +89,9 @@ popup_shape <- paste("<h3><b>", shape@data$NAME, "</b></h3>",
                      "GDP per Capita: ", "$", shape@data$GDP.per.Capita, "<br>", 
                      sep="")
 
-# prepare input
+# Inputs
+
 selectRegion <- unique(footprint$Region)
 selectCountry <- unique(footprint$Country)
+
+
