@@ -99,7 +99,12 @@ output$scat_plot <- renderPlotly({
 output$leaflet <- renderLeaflet({
     
    m <- leaflet(shape) %>% 
-        addProviderTiles("Esri.NatGeoWorldMap") %>% 
+        addProviderTiles("Esri.NatGeoWorldMap") %>%
+
+        # untuk menggunakan Google Map, gunakan addTiles (urlTemplate)
+        # addTiles(urlTemplate = "http://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}&s=Ga", 
+        #         attribution = 'Google') %>% 
+       
         setView( lat=10, lng=0 , zoom=2) %>%
     # for choropleth
         addPolygons( 

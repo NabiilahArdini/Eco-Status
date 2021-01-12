@@ -1,5 +1,6 @@
 library(rgdal) # plot map
 library(leaflet) # plot map
+library(dplyr) # data wrangling
 library(tidyr) # data wrangling
 library(ggplot2) # plot
 library(plotly) # interactive plot

@@ -20,7 +20,9 @@ sidebar <- dashboardSidebar(
       text = "Data",
       tabName = "Data",
       icon = icon("book")
-    )
+    ),
+    menuItem("Source Code", icon = icon("file-code-o"), 
+             href = "https://github.com/NabiilahArdini/Eco-Status")
   )
 )
 
@@ -150,7 +152,9 @@ body <- dashboardBody(
                 br(),
                 p("Find out more about your country ecological deficiency status on", tags$b("Eco-Status"),"!"),
                 h3("Go Act!"),
-                p("Find out more about your own footprint and help nurture earth in Global Footprint Network!")
+                p("Find out more about your own footprint and help nurture earth in", 
+                  a(href = "https://www.footprintnetwork.org/",
+                    "Global Footprint Network"))
             )
         )
       )
